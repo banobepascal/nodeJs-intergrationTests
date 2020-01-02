@@ -5,8 +5,6 @@ const { User } = require("../../models/user");
 
 let server;
 
-// happy path
-
 describe("/api/genres", () => {
   beforeEach(() => {
     server = require("../../index");
@@ -160,6 +158,12 @@ describe("/api/genres", () => {
       const updatedGenre = await Genre.findById(genre._id);
       expect(updatedGenre.name).toBe(newName);
     });
+
+    it("should return the updated genre if it is valid", async () => {
+      const res = await exec();
+      expect(res.body).toHaveProperty("_id");
+      expect(res.body).toHaveProperty("name", newName);
+    });
   });
 
   describe("DELETE /", () => {
@@ -169,8 +173,57 @@ describe("/api/genres", () => {
 
     const exec = async () => {
       return await request(server)
-        .delete("/api/genre/" + id)
-        .set("x-auth-token", token);
+        .delete("/api/genres/" + id)
+        .set("x-auth-token", token)
+        .send();
     };
+
+    beforeEach(async () => {
+      genre = new Genre({ name: "genre1" });
+      await genre.save();
+
+      id = genre._id;
+      token = new User({ isAdmin: true }).generateAuthToken();
+    });
+
+    it("should return 401 if client is not logged in", async () => {
+      token = "";
+
+      const res = await exec();
+      expect(res.status).toBe(401);
+    });
+
+    it("should return 403 if user is not admin", async () => {
+      token = new User({ isAdmin: false }).generateAuthToken();
+
+      const res = await exec();
+      expect(res.status).toBe(403);
+    });
+
+    it("should return 404 if id is invalid", async () => {
+      id = 1;
+
+      const res = await exec();
+      expect(res.status).toBe(404);
+    });
+
+    it("should return 404 if no genre with given id was found", async () => {
+      id = mongoose.Types.ObjectId();
+
+      const res = await exec();
+      expect(res.status).toBe(404);
+    });
+
+    it("should delete genre if id is valid", async () => {
+      await exec();
+      const delGenre = await Genre.findById(id);
+      expect(delGenre).toBeNull();
+    });
+
+    it("should return the removed Genre", async () => {
+      const res = await exec();
+      expect(res.body).toHaveProperty("_id", genre._id.toHexString());
+      expect(res.body).toHaveProperty("name", genre.name);
+    });
   });
 });
