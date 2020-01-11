@@ -10,8 +10,8 @@ describe("api/movies", () => {
     server = require("../../index");
   });
   afterEach(async () => {
-    server.close();
     await Movie.remove({});
+    await server.close();
   });
   describe("GET /", () => {
     it("should return all movies", async () => {
